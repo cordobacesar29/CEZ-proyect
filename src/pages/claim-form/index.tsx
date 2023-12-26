@@ -1,7 +1,7 @@
 import { Button, Flex, Text } from "@chakra-ui/react";
 import { Colors } from "../../utils/Colors";
 import { City } from "../../constants/city";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ROUTES } from "../../constants/ROUTES";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -9,6 +9,9 @@ import { claimSchema } from "../../constants/claim.schema";
 import { InputText } from "../../components/commons/input-text";
 import { InputSelect } from "../../components/commons/input-select";
 import { InputTextarea } from "../../components/commons/input-textarea";
+import { collection, addDoc } from "firebase/firestore";
+import { db } from "../../firebase";
+import { useState } from "react";
 
 interface FormValue {
   client_number: string;
@@ -21,17 +24,60 @@ interface FormValue {
 }
 
 export const ClaimForm = () => {
+  const [claimId, setClaimId] = useState<string | null>(null);
   const {
     control,
     handleSubmit,
     formState: { isSubmitting, isLoading },
+    reset,
   } = useForm<FormValue>({
     resolver: yupResolver(claimSchema),
   });
 
-  const onSubmit = (e: FormValue) => {
-    console.log(e);
+  const onSubmit = (event: FormValue) => {
+    const claimsRef = collection(db, "Claims");
+    addDoc(claimsRef, {
+      ...event,
+      status: "",
+      blocking_reason: null,
+      staff_id: null,
+    }).then((doc) => setClaimId(doc.id));
+    reset();
   };
+
+  if (claimId) {
+    return (
+      <Flex
+        w={"100%"}
+        alignItems={"center"}
+        p={{ base: "1rem", md: "2rem" }}
+        direction={"column"}
+        gap={"2rem"}
+      >
+        <Flex
+          p={"1rem"}
+          borderRadius={12}
+          bgColor={"#dbf5e6"}
+          boxShadow={"7px 10px 53px -15px rgba(0,0,0,0.38)"}
+        >
+          <Text
+            fontWeight={600}
+            fontSize={{ base: "18px", md: "24px" }}
+            color={Colors.text_primary}
+          >
+            ¡Tu reclamo se generó correctamente!
+          </Text>
+        </Flex>
+        <Text
+          fontWeight={500}
+          fontSize={{ base: "14px", md: "16px" }}
+        >{`El código de tu reclamo es : ${claimId}. Te mantendremos informado sobre el estado de tu reclamo vía email.`}</Text>
+        <Link to={ROUTES.HOME} style={{width:'fit-content'}}>
+          <Button w={{base:'100%', md:'fit-content'}}>Inicio</Button>
+        </Link>
+      </Flex>
+    );
+  }
   return (
     <Flex
       w={"100%"}

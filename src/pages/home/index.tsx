@@ -13,11 +13,11 @@ export const Home = () => {
       gap={"2rem"}
     >
       <Heading color={Colors.text_primary}>Reclamos CEZ</Heading>
-      <Text>
+      <Text textAlign={'center'}>
         Bienvenidos al sitio de reclamos de la cooperativa eléctrica de Zárate.
       </Text>
       <Link to={ROUTES.CLAIM_FORM}>
-        <Button color={Colors.text_primary}>Iniciar Reclamo</Button>
+        <Button color={Colors.text_primary}>Iniciar reclamo</Button>
       </Link>
     </Flex>
   );
