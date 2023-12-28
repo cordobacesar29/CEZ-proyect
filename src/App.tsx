@@ -2,7 +2,7 @@ import { CircularProgress } from "@chakra-ui/react";
 import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import { ROUTES } from "./constants/ROUTES";
-import { Layout } from "./components/commons/Layout";
+import { Layout } from "./components/feature/Layout";
 
 function App() {
   return (
