@@ -1,7 +1,8 @@
-import { Button, Flex, Text } from "@chakra-ui/react";
+import { useEffect, useState } from "react";
+import { Button, Flex, Text, useBoolean } from "@chakra-ui/react";
 import { Colors } from "../../utils/Colors";
-import { City } from "../../constants/city";
-import { Link, useNavigate } from "react-router-dom";
+import { City, IClaimFront, StatusType } from "../../constants/claims.enums";
+import { Link } from "react-router-dom";
 import { ROUTES } from "../../constants/ROUTES";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -9,9 +10,11 @@ import { claimSchema } from "../../constants/claim.schema";
 import { InputText } from "../../components/commons/input-text";
 import { InputSelect } from "../../components/commons/input-select";
 import { InputTextarea } from "../../components/commons/input-textarea";
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, getDocs } from "firebase/firestore";
 import { db } from "../../firebase";
-import { useState } from "react";
+import dayjs from "dayjs";
+import { SuccessfulMessage } from "../../components/feature/SuccessfulMessage";
+import { useSnackbar } from "../../hook/useSnackbar";
 
 interface FormValue {
   client_number: string;
@@ -24,60 +27,84 @@ interface FormValue {
 }
 
 export const ClaimForm = () => {
+  const [claims, setClaims] = useState<IClaimFront[]>([]);
   const [claimId, setClaimId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useBoolean();
+  const { snackbar } = useSnackbar();
+
   const {
     control,
     handleSubmit,
-    formState: { isSubmitting, isLoading },
+    formState: { isSubmitting },
+    setError,
     reset,
   } = useForm<FormValue>({
     resolver: yupResolver(claimSchema),
   });
 
-  const onSubmit = (event: FormValue) => {
-    const claimsRef = collection(db, "Claims");
-    addDoc(claimsRef, {
-      ...event,
-      status: "",
-      blocking_reason: null,
-      staff_id: null,
-    }).then((doc) => setClaimId(doc.id));
-    reset();
+  const claimsRef = collection(db, "Claims");
+
+  const getData = async () => {
+    const getDocsFromDB = await getDocs(claimsRef);
+    try {
+      setClaims(
+        //@ts-ignore
+        getDocsFromDB.docs.map((doc) => {
+          return { ...doc.data(), id: doc.id };
+        })
+      );
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  useEffect(() => {
+    getData();
+  }, []);
+  console.log(claims);
+
+  const handleError = (client_number: string) => {
+    setError("client_number", {
+      type: "validate",
+      message: "El número de cliente ya tiene un reclamo registrado.",
+    });
+    snackbar({
+      type: "error",
+      message: `El cliente n° ${client_number} ya tiene un reclamo registrado.`,
+    });
+    setIsLoading.off();
+  };
+  const onSubmit = async (event: FormValue) => {
+    setIsLoading.on();
+    const claimAlreadyExist = claims.find(
+      (el) => el.client_number === event.client_number
+    );
+
+    if (claimAlreadyExist) return handleError(claimAlreadyExist.client_number);
+
+    try {
+      const response = await addDoc(claimsRef, {
+        ...event,
+        status: StatusType.REGISTERED,
+        blocking_reason: null,
+        staff_id: null,
+        created_at: dayjs(new Date()).format(),
+        updated_at: null,
+      });
+      if (response) {
+        setClaimId(response.id);
+        reset();
+      }
+    } catch (error) {
+      console.log(error);
+    }
+    setIsLoading.on();
   };
 
   if (claimId) {
-    return (
-      <Flex
-        w={"100%"}
-        alignItems={"center"}
-        p={{ base: "1rem", md: "2rem" }}
-        direction={"column"}
-        gap={"2rem"}
-      >
-        <Flex
-          p={"1rem"}
-          borderRadius={12}
-          bgColor={"#dbf5e6"}
-          boxShadow={"7px 10px 53px -15px rgba(0,0,0,0.38)"}
-        >
-          <Text
-            fontWeight={600}
-            fontSize={{ base: "18px", md: "24px" }}
-            color={Colors.text_primary}
-          >
-            ¡Tu reclamo se generó correctamente!
-          </Text>
-        </Flex>
-        <Text
-          fontWeight={500}
-          fontSize={{ base: "14px", md: "16px" }}
-        >{`El código de tu reclamo es : ${claimId}. Te mantendremos informado sobre el estado de tu reclamo vía email.`}</Text>
-        <Link to={ROUTES.HOME} style={{width:'fit-content'}}>
-          <Button w={{base:'100%', md:'fit-content'}}>Inicio</Button>
-        </Link>
-      </Flex>
-    );
+    return <SuccessfulMessage claimId={claimId} />;
   }
+
   return (
     <Flex
       w={"100%"}
@@ -165,7 +192,12 @@ export const ClaimForm = () => {
           </Flex>
           <Flex direction={"column"} gap={"8px"} w={"100%"}>
             <Text>Descripcion del reclamo</Text>
-            <InputTextarea fullWidth control={control} name="description" />
+            <InputTextarea
+              fullWidth
+              control={control}
+              name="description"
+              placeholder="Ingresa tu reclamo"
+            />
           </Flex>
           <Flex justify={"space-evenly"}>
             <Link to={ROUTES.HOME}>
