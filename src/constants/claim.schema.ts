@@ -1,5 +1,5 @@
 import * as yup from "yup";
-import { City } from "./city";
+import { City } from "./claims.enums";
 
 export const claimSchema = yup
   .object({
