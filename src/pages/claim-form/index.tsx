@@ -61,7 +61,6 @@ export const ClaimForm = () => {
   useEffect(() => {
     getData();
   }, []);
-  console.log(claims);
 
   const handleError = (client_number: string) => {
     setError("client_number", {
